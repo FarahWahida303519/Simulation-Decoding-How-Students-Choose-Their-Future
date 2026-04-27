@@ -1,0 +1,165 @@
+function AimanDCMApp
+
+clc;
+clear;
+
+programmes = {'Pure Sciences'; 'Applied Sciences'; 'Engineering'; ...
+              'Accounting'; 'Management'; 'Arts'};
+
+% Table 1 default data
+data = [
+    5 5 3 3 4 2;
+    4 5 4 3 3 3;
+    4 5 5 2 5 2;
+    3 4 4 4 4 2;
+    3 3 3 5 3 3;
+    2 3 2 4 2 4
+];
+
+% Fixed weights from Table 2
+weights = [0.30 0.20 0.25 0.10 0.10 0.05];
+
+% Row colours for each programme
+rowColors = [
+    0.90 0.95 1.00;   % Pure Sciences - Light blue
+    0.90 1.00 0.90;   % Applied Sciences - Light green
+    1.00 0.90 0.90;   % Engineering - Light red
+    1.00 0.95 0.85;   % Accounting - Light orange
+    0.95 0.90 1.00;   % Management - Light purple
+    1.00 0.90 0.98    % Arts - Light pink
+];
+
+% ---------------- GUI ----------------
+fig = uifigure('Position',[100 100 1000 650]);
+fig.Color = 'white';
+
+uilabel(fig,...
+    'Text','Student Discrete Choice Model',...
+    'Position',[30 600 400 30],...
+    'FontSize',18,...
+    'FontWeight','bold',...
+    'FontColor','black',...
+    'BackgroundColor','white');
+
+uilabel(fig,...
+    'Text','Edit the rating scale for each programme from 1 = very low to 5 = very high.',...
+    'Position',[30 570 700 25],...
+    'FontSize',13,...
+    'FontColor','black',...
+    'BackgroundColor','white');
+
+% Combine programme names and data into one cell table
+tableData = [programmes num2cell(data)];
+
+inputTable = uitable(fig,...
+    'Data',tableData,...
+    'ColumnName',{'Programme','Interest','Exam','Career','Location','Fees','Explore'},...
+    'ColumnEditable',[false true true true true true true],...
+    'Position',[30 350 920 200],...
+    'FontSize',14,...
+    'FontWeight','bold');
+
+% ---------------- Table Row Colours + Clear Font ----------------
+style1 = uistyle('BackgroundColor',rowColors(1,:),'FontColor','black');
+style2 = uistyle('BackgroundColor',rowColors(2,:),'FontColor','black');
+style3 = uistyle('BackgroundColor',rowColors(3,:),'FontColor','black');
+style4 = uistyle('BackgroundColor',rowColors(4,:),'FontColor','black');
+style5 = uistyle('BackgroundColor',rowColors(5,:),'FontColor','black');
+style6 = uistyle('BackgroundColor',rowColors(6,:),'FontColor','black');
+
+addStyle(inputTable,style1,'row',1);
+addStyle(inputTable,style2,'row',2);
+addStyle(inputTable,style3,'row',3);
+addStyle(inputTable,style4,'row',4);
+addStyle(inputTable,style5,'row',5);
+addStyle(inputTable,style6,'row',6);
+
+btn = uibutton(fig,...
+    'Text','Run Model',...
+    'Position',[30 300 200 35],...
+    'FontSize',14,...
+    'FontWeight','bold');
+
+txt = uitextarea(fig,...
+    'Position',[30 120 300 160],...
+    'BackgroundColor','white',...
+    'FontColor','black',...
+    'FontSize',13,...
+    'FontWeight','bold');
+
+choiceLabel = uilabel(fig,...
+    'Text','Most Likely Programme: -',...
+    'Position',[30 80 500 30],...
+    'FontSize',15,...
+    'FontWeight','bold',...
+    'FontColor','black',...
+    'BackgroundColor','white');
+
+ax = uiaxes(fig,'Position',[380 70 570 250]);
+ax.Color = 'white';
+ax.XColor = 'black';
+ax.YColor = 'black';
+ax.FontSize = 12;
+ax.FontWeight = 'bold';
+
+btn.ButtonPushedFcn = @runModel;
+
+% Run once automatically
+runModel();
+
+% ---------------- Nested Function ----------------
+function runModel(~,~)
+
+    currentTable = inputTable.Data;
+
+    % Get only numeric rating values from the table
+    currentData = cell2mat(currentTable(:,2:7));
+
+    % Make sure the values are between 1 and 5
+    currentData(currentData < 1) = 1;
+    currentData(currentData > 5) = 5;
+
+    % Update table if user entered values outside 1-5
+    inputTable.Data(:,2:7) = num2cell(currentData);
+
+    % Utility calculation
+    V = currentData * weights';
+
+    % Multinomial Logit probability
+    expV = exp(V);
+    P = expV / sum(expV);
+
+    % Output text
+    result = "";
+    for i = 1:length(programmes)
+        result = result + sprintf("%s: Utility = %.2f, Probability = %.2f%%\n", ...
+            programmes{i}, V(i), P(i)*100);
+    end
+
+    txt.Value = splitlines(result);
+
+    % Bar chart with same colours as table
+    b = bar(ax,P);
+    b.FaceColor = 'flat';
+    b.CData = rowColors;
+
+    ax.XTickLabel = programmes;
+    ax.FontSize = 12;
+    ax.FontWeight = 'bold';
+    ax.XColor = 'black';
+    ax.YColor = 'black';
+
+    title(ax,'Probability Distribution','Color','black','FontWeight','bold');
+    ylabel(ax,'Probability','Color','black','FontWeight','bold');
+    xtickangle(ax,20);
+    grid(ax,'on');
+
+    % Most likely choice
+    [~,idx] = max(P);
+
+    choiceLabel.Text = "Most Likely Programme: " + programmes{idx} + ...
+                       " (" + sprintf("%.2f", P(idx)*100) + "%)";
+
+end
+
+end
